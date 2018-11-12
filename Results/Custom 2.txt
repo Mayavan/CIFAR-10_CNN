@@ -1,0 +1,31 @@
+ model = Sequential()
+        model.add(Conv2D(32, 3, input_shape=self.input_shape, strides=(1, 1), padding='valid', data_format=None,
+                         dilation_rate=(1, 1), activation=None, use_bias=True, kernel_initializer='glorot_uniform',
+                         bias_initializer='zeros'))
+        model.add(Activation('relu'))
+        model.add(Conv2D(32, 3, strides=(1, 1), padding='valid', data_format=None,
+                         dilation_rate=(1, 1), activation=None, use_bias=True, kernel_initializer='glorot_uniform',
+                         bias_initializer='zeros'))
+        model.add(Activation('relu'))
+        model.add(MaxPooling2D(pool_size=(2, 2), padding='valid'))
+
+        model.add(Conv2D(64, 3, input_shape=self.input_shape, strides=(1, 1), padding='valid', data_format=None,
+                         dilation_rate=(1, 1), activation=None, use_bias=True, kernel_initializer='glorot_uniform',
+                         bias_initializer='zeros'))
+        model.add(Activation('relu'))
+        model.add(Conv2D(64, 3, strides=(1, 1), padding='valid', data_format=None,
+                         dilation_rate=(1, 1), activation=None, use_bias=True, kernel_initializer='glorot_uniform',
+                         bias_initializer='zeros'))
+        model.add(Activation('relu'))
+        model.add(MaxPooling2D(pool_size=(2, 2), padding='valid'))
+
+        model.add(Flatten())
+        model.add(Dense(512))
+        model.add(Activation('relu'))
+        model.add(Dense(256))
+        model.add(Activation('relu'))
+        model.add(Dense(10))
+        model.add(Activation('softmax'))
+
+        optimizer = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
+        model.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['acc'])
