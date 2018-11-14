@@ -3,6 +3,7 @@ from keras.models import load_model
 from keras.datasets import cifar10
 from keras.utils import np_utils
 from matplotlib import pyplot
+from keras.preprocessing.image import ImageDataGenerator
 import os
 
 weight_decay = 0.0005
@@ -28,7 +29,18 @@ class NeuralNetwork:
 
     # Fit the model
     def trainModel(self, epochs, batch_size):
-        history = self.model.fit(self.x_train, self.y_train, batch_size=batch_size, validation_data=(self.x_test, self.y_test), epochs=epochs, verbose=1)
+        generator = ImageDataGenerator(rotation_range=10,
+                                       width_shift_range=5. / 32,
+                                       height_shift_range=5. / 32,
+                                       horizontal_flip=True)
+
+        generator.fit(self.x_train, seed=0, augment=True)
+        history = self.model.fit_generator(generator.flow(self.x_train, self.y_train),
+                                           steps_per_epoch=len(self.x_train) // batch_size + 1,
+                                           validation_data=(self.x_test, self.y_test),
+                                           validation_steps=self.x_test.shape[0] // batch_size,
+                                           nb_epoch=epochs,
+                                           verbose=1)
         try:
             os.mkdir('../Results/'+self.name[0: -3])
         except FileExistsError:
@@ -53,17 +65,19 @@ class NeuralNetwork:
         pyplot.savefig('../Results/'+self.name[0: -3]+'/Accuracy.png')
         pyplot.show()
 
-        self.model.save(self.name)
+        model_path = os.path.join(save_dir, self.name)
+        self.model.save(model_path)
 
     # evaluate the model
     def testModel(self):
-        scores = self.model.evaluate(self.x_test, self.y_test, verbose=1)
-        print("Test data Loss is :", scores)
+        loss, acc = self.model.evaluate(self.x_test, self.y_test, verbose=1)
+        print('\nTesting loss: {}, acc: {}\n'.format(loss, acc))
 
 
 if __name__ == "__main__":
     # NeuralNetwork("ResNet56.h5").trainModel(100, 100)
-    NeuralNetwork("wrn.h5").trainModel(100, 100)
+    # NeuralNetwork("wrn.h5").trainModel(50, 100)
     # NeuralNetwork("LeNet.h5").trainModel(100, 500)
     # NeuralNetwork("custom.h5").trainModel(100, 500)
-    # NeuralNetwork("AlexNet.h5").trainModel(100, 50)
+    NeuralNetwork("AlexNet.h5").trainModel(100, 100)
+    # NeuralNetwork("wrn.h5").testModel()

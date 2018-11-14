@@ -32,7 +32,8 @@ class NeuralNetwork:
             print("Built: VGG19")
         elif name == "wrn.h5":
             init = (32, 32, 3)
-            model = self.create_wide_residual_network(init, nb_classes=10, N=2, k=2, dropout=0.25)
+            model = self.create_wide_residual_network(init, nb_classes=10, N=4, k=8, dropout=0.0)
+            model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["acc"])
             model.summary()
             print("Built: WRN")
         elif name == "custom.h5":
@@ -237,51 +238,108 @@ class NeuralNetwork:
             x = conv(x)
         return x
 
-    def expand_conv(self, init, base, k, stride):
+    weight_decay = 0.0005
+
+    def initial_conv(self, input):
+        x = Convolution2D(16, (3, 3), padding='same', kernel_initializer='he_normal',
+                          W_regularizer=l2(weight_decay),
+                          use_bias=False)(input)
+
         channel_axis = 1 if K.image_data_format() == "channels_first" else -1
 
-        shortcut = BatchNormalization(axis=channel_axis, momentum=0.1, epsilon=1e-5, gamma_initializer='uniform')(init)
-        shortcut = Activation('relu')(shortcut)
+        x = BatchNormalization(axis=channel_axis, momentum=0.1, epsilon=1e-5, gamma_initializer='uniform')(x)
+        x = Activation('relu')(x)
+        return x
 
-        x = ZeroPadding2D((1, 1))(shortcut)
-        x = Convolution2D(base * k, (3, 3), strides=stride, padding='valid', kernel_initializer='he_normal',
-                          use_bias=False)(x)
+    def expand_conv(self, init, base, k, strides=(1, 1)):
+        x = Convolution2D(base * k, (3, 3), padding='same', strides=strides, kernel_initializer='he_normal',
+                          W_regularizer=l2(weight_decay),
+                          use_bias=False)(init)
+
+        channel_axis = 1 if K.image_data_format() == "channels_first" else -1
 
         x = BatchNormalization(axis=channel_axis, momentum=0.1, epsilon=1e-5, gamma_initializer='uniform')(x)
         x = Activation('relu')(x)
 
-        x = ZeroPadding2D((1, 1))(x)
-        x = Convolution2D(base * k, (3, 3), strides=(1, 1), padding='valid', kernel_initializer='he_normal',
+        x = Convolution2D(base * k, (3, 3), padding='same', kernel_initializer='he_normal',
+                          W_regularizer=l2(weight_decay),
                           use_bias=False)(x)
 
-        # Add shortcut
+        skip = Convolution2D(base * k, (1, 1), padding='same', strides=strides, kernel_initializer='he_normal',
+                             W_regularizer=l2(weight_decay),
+                             use_bias=False)(init)
 
-        shortcut = Convolution2D(base * k, (1, 1), strides=stride, padding='same', kernel_initializer='he_normal',
-                                 use_bias=False)(shortcut)
-
-        m = Add()([x, shortcut])
+        m = Add()([x, skip])
 
         return m
 
-    def conv_block(self, input, n, stride, k=1, dropout=0.0):
+    def conv1_block(self, input, k=1, dropout=0.0):
         init = input
 
         channel_axis = 1 if K.image_data_format() == "channels_first" else -1
 
         x = BatchNormalization(axis=channel_axis, momentum=0.1, epsilon=1e-5, gamma_initializer='uniform')(input)
         x = Activation('relu')(x)
-        x = Convolution2D(n * k, (3, 3), strides=(1, 1), padding='same', kernel_initializer='he_normal', use_bias=False)(x)
+        x = Convolution2D(16 * k, (3, 3), padding='same', kernel_initializer='he_normal',
+                          W_regularizer=l2(weight_decay),
+                          use_bias=False)(x)
 
         if dropout > 0.0: x = Dropout(dropout)(x)
 
         x = BatchNormalization(axis=channel_axis, momentum=0.1, epsilon=1e-5, gamma_initializer='uniform')(x)
         x = Activation('relu')(x)
-        x = Convolution2D(n * k, (3, 3), strides=(1, 1), padding='same', kernel_initializer='he_normal', use_bias=False)(x)
+        x = Convolution2D(16 * k, (3, 3), padding='same', kernel_initializer='he_normal',
+                          W_regularizer=l2(weight_decay),
+                          use_bias=False)(x)
 
         m = Add()([init, x])
         return m
 
-    def create_wide_residual_network(self, input_dim, nb_classes=10, N=4, k=1, dropout=0.0):
+    def conv2_block(self, input, k=1, dropout=0.0):
+        init = input
+
+        channel_axis = 1 if K.image_dim_ordering() == "th" else -1
+
+        x = BatchNormalization(axis=channel_axis, momentum=0.1, epsilon=1e-5, gamma_initializer='uniform')(input)
+        x = Activation('relu')(x)
+        x = Convolution2D(32 * k, (3, 3), padding='same', kernel_initializer='he_normal',
+                          W_regularizer=l2(weight_decay),
+                          use_bias=False)(x)
+
+        if dropout > 0.0: x = Dropout(dropout)(x)
+
+        x = BatchNormalization(axis=channel_axis, momentum=0.1, epsilon=1e-5, gamma_initializer='uniform')(x)
+        x = Activation('relu')(x)
+        x = Convolution2D(32 * k, (3, 3), padding='same', kernel_initializer='he_normal',
+                          W_regularizer=l2(weight_decay),
+                          use_bias=False)(x)
+
+        m = Add()([init, x])
+        return m
+
+    def conv3_block(self, input, k=1, dropout=0.0):
+        init = input
+
+        channel_axis = 1 if K.image_dim_ordering() == "th" else -1
+
+        x = BatchNormalization(axis=channel_axis, momentum=0.1, epsilon=1e-5, gamma_initializer='uniform')(input)
+        x = Activation('relu')(x)
+        x = Convolution2D(64 * k, (3, 3), padding='same', kernel_initializer='he_normal',
+                          W_regularizer=l2(weight_decay),
+                          use_bias=False)(x)
+
+        if dropout > 0.0: x = Dropout(dropout)(x)
+
+        x = BatchNormalization(axis=channel_axis, momentum=0.1, epsilon=1e-5, gamma_initializer='uniform')(x)
+        x = Activation('relu')(x)
+        x = Convolution2D(64 * k, (3, 3), padding='same', kernel_initializer='he_normal',
+                          W_regularizer=l2(weight_decay),
+                          use_bias=False)(x)
+
+        m = Add()([init, x])
+        return m
+
+    def create_wide_residual_network(self, input_dim, nb_classes=100, N=2, k=1, dropout=0.0, verbose=1):
         """
         Creates a Wide Residual Network with specified parameters
         :param input: Input Keras object
@@ -295,43 +353,51 @@ class NeuralNetwork:
         :param verbose: Debug info to describe created WRN
         :return:
         """
-        ip = Input(shape=input_dim)
-
-        x = ZeroPadding2D((1, 1))(ip)
-
         channel_axis = 1 if K.image_data_format() == "channels_first" else -1
 
-        x = Convolution2D(16, (3, 3), padding='same', kernel_initializer='he_normal', use_bias=False)(x)
+        ip = Input(shape=input_dim)
 
+        x = self.initial_conv(ip)
         nb_conv = 4
 
-        x = self.expand_conv(x, 16, k, stride=(1, 1))
+        x = self.expand_conv(x, 16, k)
+        nb_conv += 2
 
         for i in range(N - 1):
-            x = self.conv_block(x, n=16, stride=(1, 1), k=k, dropout=dropout)
+            x = self.conv1_block(x, k, dropout)
             nb_conv += 2
 
-        x = self.expand_conv(x, 32, k, stride=(2, 2))
+        x = BatchNormalization(axis=channel_axis, momentum=0.1, epsilon=1e-5, gamma_initializer='uniform')(x)
+        x = Activation('relu')(x)
+
+        x = self.expand_conv(x, 32, k, strides=(2, 2))
+        nb_conv += 2
 
         for i in range(N - 1):
-            x = self.conv_block(x, n=32, stride=(2, 2), k=k, dropout=dropout)
+            x = self.conv2_block(x, k, dropout)
             nb_conv += 2
 
-        x = self.expand_conv(x, 64, k, stride=(2, 2))
+        x = BatchNormalization(axis=channel_axis, momentum=0.1, epsilon=1e-5, gamma_initializer='uniform')(x)
+        x = Activation('relu')(x)
+
+        x = self.expand_conv(x, 64, k, strides=(2, 2))
+        nb_conv += 2
 
         for i in range(N - 1):
-            x = self.conv_block(x, n=64, stride=(2, 2), k=k, dropout=dropout)
+            x = self.conv3_block(x, k, dropout)
             nb_conv += 2
+
+        x = BatchNormalization(axis=channel_axis, momentum=0.1, epsilon=1e-5, gamma_initializer='uniform')(x)
+        x = Activation('relu')(x)
 
         x = AveragePooling2D((8, 8))(x)
         x = Flatten()(x)
 
-        x = Dense(nb_classes, activation='softmax')(x)
+        x = Dense(nb_classes, W_regularizer=l2(weight_decay), activation='softmax')(x)
 
         model = Model(ip, x)
 
-        model.compile(loss=losses.categorical_crossentropy, optimizer='SGD', metrics=['acc'])
-        model.summary()
+        if verbose: print("Wide Residual Network-%d-%d created." % (nb_conv, k))
         return model
 
     def createAlexNet(self):
@@ -340,8 +406,17 @@ class NeuralNetwork:
         model = Sequential()
 
         # 1st Convolutional Layer
-        model.add(Conv2D(filters=96, input_shape=(32, 32, 3), kernel_size=(5, 5),
-                         strides=(4, 4), padding='valid'))
+        model.add(Conv2D(filters=96, input_shape=(32, 32, 3), kernel_size=(3, 3),
+                         strides=(1, 1), padding='valid'))
+        model.add(Activation('relu'))
+        # Pooling
+        model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='valid'))
+        # Batch Normalisation before passing it to the next layer
+        model.add(BatchNormalization())
+
+        # 2st Convolutional Layer
+        model.add(Conv2D(filters=256, input_shape=(32, 32, 3), kernel_size=(3, 3),
+                         strides=(1, 1), padding='valid'))
         model.add(Activation('relu'))
         # Pooling
         model.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2), padding='valid'))
@@ -357,7 +432,7 @@ class NeuralNetwork:
         # Passing it to a dense layer
         model.add(Flatten())
         # 1st Dense Layer
-        model.add(Dense(4096, input_shape=(224 * 224 * 3,)))
+        model.add(Dense(2048))
         model.add(Activation('relu'))
         # Add Dropout to prevent overfitting
         model.add(Dropout(0.4))
@@ -365,7 +440,7 @@ class NeuralNetwork:
         model.add(BatchNormalization())
 
         # 2nd Dense Layer
-        model.add(Dense(4096))
+        model.add(Dense(2048))
         model.add(Activation('relu'))
         # Add Dropout
         model.add(Dropout(0.4))
