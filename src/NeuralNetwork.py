@@ -1,9 +1,9 @@
 import numpy as np
-from keras.models import load_model
-from keras.datasets import cifar10
-from keras.utils import np_utils
+from tensorflow.keras.models import load_model
+from tensorflow.keras.datasets import cifar10
+from tensorflow.keras.utils import to_categorical
 from matplotlib import pyplot
-from keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import os
 
 weight_decay = 0.0005
@@ -24,8 +24,8 @@ class NeuralNetwork:
         self.x_test = self.x_test / 255.0
 
         # one hot encode outputs
-        self.y_train = np_utils.to_categorical(self.y_train)
-        self.y_test = np_utils.to_categorical(self.y_test)
+        self.y_train = to_categorical(self.y_train)
+        self.y_test = to_categorical(self.y_test)
 
     # Fit the model
     def trainModel(self, epochs, batch_size):
@@ -35,11 +35,11 @@ class NeuralNetwork:
                                        horizontal_flip=True)
 
         generator.fit(self.x_train, seed=0, augment=True)
-        history = self.model.fit_generator(generator.flow(self.x_train, self.y_train),
+        history = self.model.fit(generator.flow(self.x_train, self.y_train),
                                            steps_per_epoch=len(self.x_train) // batch_size + 1,
                                            validation_data=(self.x_test, self.y_test),
                                            validation_steps=self.x_test.shape[0] // batch_size,
-                                           nb_epoch=epochs,
+                                           epochs=epochs,
                                            verbose=1)
         try:
             os.mkdir('../Results/'+self.name[0: -3])
@@ -59,7 +59,7 @@ class NeuralNetwork:
         pyplot.title(''.join([self.name[0: -3], " with mini batch size of ", str(batch_size)]))
         pyplot.xlabel('Epochs')
         pyplot.ylabel('Accuracy')
-        pyplot.plot(history.history['val_acc'], label='Validation Accuracy')
+        pyplot.plot(history.history['val_accuracy'], label='Validation Accuracy')
         pyplot.plot(history.history['acc'], label='Training Accuracy')
         pyplot.legend()
         pyplot.savefig('../Results/'+self.name[0: -3]+'/Accuracy.png')

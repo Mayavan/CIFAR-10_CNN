@@ -1,13 +1,14 @@
-import keras
-from keras.models import Sequential
-from keras.layers.convolutional import Convolution2D, MaxPooling2D, Conv2D, AveragePooling2D, ZeroPadding2D
-from keras import optimizers, losses
-from keras.applications import vgg16
-from keras.models import Model
-from keras.layers import Input, Add, Activation, Dropout, Flatten, Dense
-from keras.layers.normalization import BatchNormalization
-from keras import backend as K
-from keras.regularizers import l2
+from tensorflow import keras
+from tensorflow.keras import datasets, layers, models
+from tensorflow.keras.models import Sequential
+from tensorflow.keras import optimizers, losses
+from tensorflow.keras.applications import vgg16
+from tensorflow.keras.models import Model
+from tensorflow.keras.layers import Convolution2D, MaxPooling2D, Conv2D, AveragePooling2D, ZeroPadding2D
+from tensorflow.keras.layers import Input, Add, Activation, Dropout, Flatten, Dense
+from tensorflow.keras.layers import BatchNormalization
+from tensorflow.keras import backend as K
+from tensorflow.keras.regularizers import l2
 import os
 
 weight_decay = 0.0005
