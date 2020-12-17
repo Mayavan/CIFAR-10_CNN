@@ -3,6 +3,8 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras.datasets import cifar10
 from tensorflow.keras.utils import to_categorical
 from matplotlib import pyplot
+import datetime
+import tensorflow as tf
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 import os
 
@@ -34,13 +36,22 @@ class NeuralNetwork:
                                        height_shift_range=5. / 32,
                                        horizontal_flip=True)
 
+        log_dir = "logs/fit/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        tensorboard_callback = tf.keras.callbacks.TensorBoard(log_dir=log_dir, histogram_freq=1)
         generator.fit(self.x_train, seed=0, augment=True)
         history = self.model.fit(generator.flow(self.x_train, self.y_train),
                                            steps_per_epoch=len(self.x_train) // batch_size + 1,
                                            validation_data=(self.x_test, self.y_test),
                                            validation_steps=self.x_test.shape[0] // batch_size,
                                            epochs=epochs,
+                                           callbacks=[tensorboard_callback],
                                            verbose=1)
+
+        print("Saving Updated Model:")
+        model_path = os.path.join(save_dir, self.name)
+        self.model.save(model_path)
+
+        print("Saving training graphs:")
         try:
             os.mkdir('../Results/'+self.name[0: -3])
         except FileExistsError:
@@ -60,13 +71,10 @@ class NeuralNetwork:
         pyplot.xlabel('Epochs')
         pyplot.ylabel('Accuracy')
         pyplot.plot(history.history['val_accuracy'], label='Validation Accuracy')
-        pyplot.plot(history.history['acc'], label='Training Accuracy')
+        pyplot.plot(history.history['accuracy'], label='Training Accuracy')
         pyplot.legend()
         pyplot.savefig('../Results/'+self.name[0: -3]+'/Accuracy.png')
         pyplot.show()
-
-        model_path = os.path.join(save_dir, self.name)
-        self.model.save(model_path)
 
     # evaluate the model
     def testModel(self):
@@ -79,5 +87,5 @@ if __name__ == "__main__":
     # NeuralNetwork("wrn.h5").trainModel(50, 100)
     # NeuralNetwork("LeNet.h5").trainModel(100, 500)
     # NeuralNetwork("custom.h5").trainModel(100, 500)
-    NeuralNetwork("AlexNet.h5").trainModel(100, 100)
+    NeuralNetwork("AlexNet.h5").trainModel(3, 100)
     # NeuralNetwork("wrn.h5").testModel()

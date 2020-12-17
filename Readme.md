@@ -19,3 +19,10 @@ The model will be created and saved in src/saved_models
 
 Uncomment the model you want to train in the file src/NeuralNetwork.py.
 The results will be plotted and saved in the result folder.
+
+![TensorBoard](./images/tensorboard.png])
+
+```
+# Use tensor board to visualize training process
+tensorboard --logdir ./logs/fit/
+```
